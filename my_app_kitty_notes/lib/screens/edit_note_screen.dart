@@ -31,7 +31,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
     }
   }
 
-  void _saveNote() {
+  Future<void> _saveNote() async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
@@ -40,18 +40,22 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
       return;
     }
 
-    if (_isEditing) {
-      final updatedNote = widget.note!.copyWith(
-        title: title,
-        content: content,
-      );
-      widget.notesService.updateNote(widget.note!.id, updatedNote);
-    } else {
-      final newNote = Note.create(title: title, content: content);
-      widget.notesService.addNote(newNote);
-    }
+    try {
+      if (_isEditing) {
+        final updatedNote = widget.note!.copyWith(
+          title: title,
+          content: content,
+        );
+        await widget.notesService.updateNote(widget.note!.id, updatedNote);
+      } else {
+        final newNote = Note.create(title: title, content: content);
+        await widget.notesService.addNote(newNote);
+      }
 
-    Navigator.pop(context, true);
+      Navigator.pop(context, true);
+    } catch (e) {
+      _showError('Ошибка сохранения: $e');
+    }
   }
 
   void _showValidationError() {
@@ -60,6 +64,22 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Ошибка валидации'),
         content: const Text('Заголовок и текст заметки не могут быть пустыми.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ошибка'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

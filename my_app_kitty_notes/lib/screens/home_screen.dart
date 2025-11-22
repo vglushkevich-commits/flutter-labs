@@ -15,11 +15,26 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final NotesService _notesService = NotesService();
   late List<Note> _displayedNotes;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _displayedNotes = _notesService.getAllNotes();
+    _loadNotes();
+  }
+
+  Future<void> _loadNotes() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Даем время на инициализацию сервиса
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    setState(() {
+      _displayedNotes = _notesService.getAllNotes();
+      _isLoading = false;
+    });
   }
 
   void _refreshNotes() {
@@ -40,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (result == true) {
-      _refreshNotes();
+      await _loadNotes();
       _showSnackBar(note == null ? 'Заметка создана' : 'Заметка обновлена');
     }
   }
@@ -64,9 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('Отмена'),
           ),
           TextButton(
-            onPressed: () {
-              _notesService.deleteNote(note.id);
-              _refreshNotes();
+            onPressed: () async {
+              await _notesService.deleteNote(note.id);
+              await _loadNotes();
               Navigator.pop(context);
               _showSnackBar('Заметка удалена');
             },
@@ -99,86 +114,90 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Заметки'),
         backgroundColor: Colors.blue.shade50,
       ),
-      body: Column(
-        children: [
-          // Поиск и кнопка котиков
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: '🔎 Поиск...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                // Поиск и кнопка котиков
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: '🔎 Поиск...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: _clearSearch,
+                                  )
+                                : null,
+                          ),
+                          onChanged: (value) => _refreshNotes(),
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                      const SizedBox(width: 12),
+                      IconButton(
+                        onPressed: _navigateToCatsScreen,
+                        icon: const Icon(Icons.pets, size: 28),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.orange.shade100,
+                          padding: const EdgeInsets.all(12),
+                        ),
+                        tooltip: 'Случайные котики',
                       ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _clearSearch,
-                            )
-                          : null,
-                    ),
-                    onChanged: (value) => _refreshNotes(),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: _navigateToCatsScreen,
-                  icon: const Icon(Icons.pets, size: 28),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.orange.shade100,
-                    padding: const EdgeInsets.all(12),
+                
+                // Кнопка новой заметки
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _navigateToEditNote(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Новая заметка'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
-                  tooltip: 'Случайные котики',
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Список заметок или пустое состояние
+                Expanded(
+                  child: _displayedNotes.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          itemCount: _displayedNotes.length,
+                          itemBuilder: (context, index) {
+                            final note = _displayedNotes[index];
+                            return _buildNoteCard(note);
+                          },
+                        ),
                 ),
               ],
             ),
-          ),
-          
-          // Кнопка новой заметки
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _navigateToEditNote(),
-                icon: const Icon(Icons.add),
-                label: const Text('Новая заметка'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Список заметок или пустое состояние
-          Expanded(
-            child: _displayedNotes.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    itemCount: _displayedNotes.length,
-                    itemBuilder: (context, index) {
-                      final note = _displayedNotes[index];
-                      return _buildNoteCard(note);
-                    },
-                  ),
-          ),
-        ],
-      ),
     );
   }
 
