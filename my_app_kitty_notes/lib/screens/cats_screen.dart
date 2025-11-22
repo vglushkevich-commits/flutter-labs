@@ -17,10 +17,18 @@ class _CatsScreenState extends State<CatsScreen> {
 
     // Имитация загрузки новой картинки
     Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCat();
   }
 
   @override
@@ -36,6 +44,7 @@ class _CatsScreenState extends State<CatsScreen> {
           IconButton(
             onPressed: _isLoading ? null : _refreshCat,
             icon: const Icon(Icons.refresh),
+            tooltip: 'Новый котик',
           ),
         ],
       ),
@@ -60,7 +69,14 @@ class _CatsScreenState extends State<CatsScreen> {
           Expanded(
             child: Center(
               child: _isLoading
-                  ? const CircularProgressIndicator()
+                  ? const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Ищем нового котика...'),
+                      ],
+                    )
                   : Container(
                       margin: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -84,6 +100,20 @@ class _CatsScreenState extends State<CatsScreen> {
                         ],
                       ),
                     ),
+            ),
+          ),
+          // Подсказка для ЛР6
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            color: Colors.blue.shade50,
+            child: const Text(
+              'В ЛР6 здесь будет подключено реальное API с котиками',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.blue,
+                fontSize: 12,
+              ),
             ),
           ),
         ],

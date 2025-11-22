@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/note.dart';
+import '../services/notes_service.dart';
 
 class EditNoteScreen extends StatefulWidget {
   final Note? note;
+  final NotesService notesService;
 
-  const EditNoteScreen({super.key, this.note});
+  const EditNoteScreen({
+    super.key,
+    this.note,
+    required this.notesService,
+  });
 
   @override
   State<EditNoteScreen> createState() => _EditNoteScreenState();
@@ -29,16 +35,38 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
-    if (title.isEmpty || content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Заголовок и текст не могут быть пустыми')),
-      );
+    if (!NotesService.validateNote(title, content)) {
+      _showValidationError();
       return;
     }
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_isEditing ? 'Заметка обновлена' : 'Заметка сохранена')),
+    if (_isEditing) {
+      final updatedNote = widget.note!.copyWith(
+        title: title,
+        content: content,
+      );
+      widget.notesService.updateNote(widget.note!.id, updatedNote);
+    } else {
+      final newNote = Note.create(title: title, content: content);
+      widget.notesService.addNote(newNote);
+    }
+
+    Navigator.pop(context, true);
+  }
+
+  void _showValidationError() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ошибка валидации'),
+        content: const Text('Заголовок и текст заметки не могут быть пустыми.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -55,6 +83,7 @@ class _EditNoteScreenState extends State<EditNoteScreen> {
           IconButton(
             onPressed: _saveNote,
             icon: const Icon(Icons.check, color: Colors.green),
+            tooltip: 'Сохранить',
           ),
         ],
       ),
